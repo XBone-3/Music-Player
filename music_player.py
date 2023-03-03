@@ -111,7 +111,7 @@ def search_song(window, event, values):
         new_list_music_files = [song for song in music_files if search_str.lower() in song.lower()]
         window[file_list].update(new_list_music_files)
 
-def song_mixer(window, song):
+def song_mixer(window, song, progress_bar):
     mixer.music.load(os.path.join(music_dict[song], song))
     mixer.music.set_volume(0.5)
     mixer.music.play()
@@ -120,7 +120,8 @@ def song_mixer(window, song):
     except error:
         song_length = MP3(os.path.join(music_dict[song], song)).info.length
     window[end_time].update(f'{int(song_length // 60)}:{int(song_length % 60)}')
-    return song_length, music_files.index(song)
+    progress_bar.update(0, int(song_length))
+    return music_files.index(song)
 
 def pause_play_stop(event):
     if event == 'Pause' and mixer.music.get_busy():
@@ -150,29 +151,29 @@ def volume_setter(event, values):
         volume = values['volume']
         mixer.music.set_volume(volume/100)
 
-def next_previous(window, event, current_song_index):
+def next_previous(window, event, current_song_index, progress_bar):
     if event == 'Next' and len(music_files) > 0:
         if current_song_index >= len(music_files) - 1:
             current_song_index = -1
         song = music_files[current_song_index + 1]
-        _song_length, current_song_index = song_mixer(window, song)
+        current_song_index = song_mixer(window, song, progress_bar)
         window[song_name].update(song)
         return current_song_index
     if event == 'Previous' and len(music_files) > 0:
         if current_song_index <= 0:
             current_song_index = len(music_files)
         song = music_files[current_song_index - 1]
-        _song_length, current_song_index = song_mixer(window, song)
+        current_song_index = song_mixer(window, song, progress_bar)
         window[song_name].update(song)
         return current_song_index
     return current_song_index
 
-def shuffle(window, event, values, current_song_index):
+def shuffle(window, event, values, current_song_index, progress_bar):
     if event == 'shuffle':
         shuffle = values['shuffle']
         if shuffle and len(music_files) > 0:
             song = random.choice(music_files)
-            _song_length, curr_song_index = song_mixer(window, song)
+            curr_song_index = song_mixer(window, song, progress_bar)
             window[song_name].update(song)
             return curr_song_index
     return current_song_index
@@ -200,14 +201,14 @@ def player_loop(window):
         if event == file_list and len(music_files) > 0:
             song = values[file_list][0]
             window[song_name].update(song)
-            song_length, curr_song_index = song_mixer(window, song)
-            progress_bar.update(0, int(song_length))
+            curr_song_index = song_mixer(window, song, progress_bar)
+            
         
         volume_setter(event, values)
         pause_play_stop(event)
         update_time(window)
-        curr_song_index = next_previous(window, event, curr_song_index)
-        curr_song_index = shuffle(window, event, values, curr_song_index)
+        curr_song_index = next_previous(window, event, curr_song_index, progress_bar)
+        curr_song_index = shuffle(window, event, values, curr_song_index, progress_bar)
         popup(event)
                 
         if event in (sg.WIN_CLOSED, 'Exit'):
