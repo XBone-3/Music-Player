@@ -4,17 +4,16 @@ from pygame import mixer, error
 from threading import Thread, Event
 from mutagen.mp3 import MP3
 
+thread_event = Event()
 music_dict = dict()
 music_files = list()
 path_tracker = list()
-play_music = 'Player must be playing a music'
 file_list = '-FILE_LIST-'
 song_name = 'song name'
 start_time = 'start time'
 end_time = 'end time'
 AUTHOR = 'XBone-3'
 GitHub = 'github.com/XBone-3'
-thread_event = Event()
 
 def list_music_files(folder_path):
     items = os.listdir(folder_path)
@@ -80,13 +79,10 @@ def layouts():
             sg.Text(text='Search: '),
             sg.In(size=(50, 1), justification='center', key='search', enable_events=True)
         ],
-        # [sg.HSeparator()],
         [
-            # sg.VSeparator(),
             sg.Column(file_list_column, element_justification='center', vertical_alignment='center'),
             sg.VSeparator(),
             sg.Column(music_player_column, element_justification='center', vertical_alignment='center'),
-            # sg.VSeparator()
         ],
         [sg.HSeparator()],
         [
@@ -123,15 +119,23 @@ def song_mixer(window, song, progress_bar):
     window[song_name].update(song)
     return music_files.index(song)
 
-def automatic_next(window, current_song_index, shuffle, progress_bar):
-    if 0 <= current_song_index < len(music_files) - 1:
+def automatic_next(window, current_song_index, shuffle, repeat, progress_bar):
+    if 0 <= current_song_index < len(music_files):
         song = music_files[current_song_index]
+        new_song_index = current_song_index
+        if (int(mixer.music.get_pos() / 1000) == int(MP3(os.path.join(music_dict[song], song)).info.length)):
+            new_song_index = current_song_index + 1
         if not shuffle:
-            next_song = music_files[current_song_index + 1]
+            if repeat and new_song_index == len(music_files):
+                new_song_index = 0
+            elif not repeat and new_song_index == len(music_files):
+                mixer.music.stop()
+                return current_song_index
+            next_song = music_files[new_song_index]
         else:
             next_song = random.choice(music_files)
         if int(mixer.music.get_pos() / 1000) == int(MP3(os.path.join(music_dict[song], song)).info.length):
-            current_song_index = song_mixer(window, next_song, progress_bar)
+            return song_mixer(window, next_song, progress_bar)
     return current_song_index
 
 def pause_play_stop(event):
@@ -195,7 +199,7 @@ def player_loop(window):
     curr_song_index = -1
     while True:
         event, values = window.read(timeout=20)
-        shuffle = values['shuffle']
+        shuffle, repeat = values['shuffle'], values['repeat']
         load_files(window, event, values)
         search_song(window, event, values)
         if event == file_list and len(music_files) > 0:
@@ -206,7 +210,7 @@ def player_loop(window):
         pause_play_stop(event)
         update_time(window)
         curr_song_index = next_previous(window, event, curr_song_index, progress_bar)
-        curr_song_index = automatic_next(window, curr_song_index, shuffle, progress_bar)
+        curr_song_index = automatic_next(window, curr_song_index, shuffle, repeat, progress_bar)
         popup(event)
                 
         if event in (sg.WIN_CLOSED, 'Exit'):
