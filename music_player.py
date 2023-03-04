@@ -8,7 +8,6 @@ from mutagen.mp3 import MP3
 thread_event = Event()
 music_dict = dict()
 music_files = list()
-path_tracker = list()
 file_list = '-FILE_LIST-'
 song_name = 'song name'
 start_time = 'start time'
@@ -18,8 +17,6 @@ GitHub = 'github.com/XBone-3'
 
 def list_music_files(folder_path):
     items = os.listdir(folder_path)
-    if folder_path not in music_dict.keys():
-        music_dict[folder_path] = []
     for item in items:
         destination = os.path.join(folder_path, item)
         if os.path.isdir(destination):
@@ -119,6 +116,7 @@ def time_formatter(time_in_seconds):
     return minutes, seconds
 
 def song_mixer(window, song, progress_bar):
+    mixer.music.unload()
     mixer.music.load(os.path.join(music_dict[song], song))
     mixer.music.set_volume(0.5)
     mixer.music.play()
