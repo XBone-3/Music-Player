@@ -28,19 +28,18 @@ def list_music_files(folder_path):
 def button(text):
     return sg.Button(button_text=text, auto_size_button=True, key=text)
 
-def layouts():
-    file_list_column = [
+def layouts(name):
+    file_list_layout = [
         [
             sg.Text('Folder', auto_size_text=True),
             sg.In(key='-PATH-', enable_events=True, size=(25, 1)),
             sg.FolderBrowse(button_text='Browse', auto_size_button=True)
         ],
         [sg.Listbox(values=[], enable_events=True,
-                    size=(40, 20), key='-FILE_LIST-')]
+                    size=(50, 20), key='-FILE_LIST-')]
     ]
-    music_player_column = [
-        [sg.Text(text='MP3 Player', auto_size_text=True, font=("Helvetica", 11), justification='center')],
-        [sg.Text('Choose a song from the list to play or press start to start a random song',
+    music_controls_layout = [
+        [sg.Text('Choose a song from the list to play',
                  justification='center', auto_size_text=True)],
         [sg.Text('', size=(20, 1), auto_size_text=True,
                  justification='center', key='-TOUT-')],
@@ -50,10 +49,9 @@ def layouts():
             sg.Text('00:00', auto_size_text=True, size=(6,1), key=start_time, justification='right'),
             sg.VSeparator(),
             sg.ProgressBar(max_value=1000,
-                           size=(20, 10),
+                           size=(20, 5),
                            orientation='h',
-                           key='progressbar'
-                           ),
+                           key='progressbar'),
             sg.VSeparator(),
             sg.Text('00:00', auto_size_text=True, size=(6,1), key=end_time, justification='left')
         ],
@@ -73,24 +71,43 @@ def layouts():
         ]
 
     ]
-    layout = [
-        [
-            sg.Text(text='Search: '),
-            sg.In(size=(50, 1), justification='center', key='search', enable_events=True)
-        ],
-        [
-            sg.Column(file_list_column, element_justification='center', vertical_alignment='center'),
-            sg.VSeparator(),
-            sg.Column(music_player_column, element_justification='center', vertical_alignment='center'),
-        ],
-        [sg.HSeparator()],
-        [
-            sg.Text('Description', auto_size_text=True, justification='center', text_color='black', background_color='white', enable_events=True, key='disc'),
-            sg.Button(button_text='Exit', button_color='Black'),
-            sg.Text(f'Made by {AUTHOR}', auto_size_text=True, justification='center', text_color='black', background_color='white', enable_events=True, key=AUTHOR)
+    if name == 'vertical_layout':
+        vertical_layout = [
+            [sg.Text(text='MP3 Player', auto_size_text=True, font=("Helvetica", 19), justification='center')],
+            [
+                sg.In(default_text='Search', size=(50, 1), justification='center', key='search', enable_events=True)
+            ],
+            [file_list_layout],
+            [sg.HSeparator()],
+            [music_controls_layout],
+            [sg.HSeparator()],
+            [
+                sg.Text('Description', auto_size_text=True, justification='center', text_color='black', background_color='white', enable_events=True, key='disc'),
+                sg.Button(button_text='Exit', button_color='Black'),
+                sg.Text(f'Made by {AUTHOR}', auto_size_text=True, justification='center', text_color='black', background_color='white', enable_events=True, key=AUTHOR)
+            ]
         ]
-    ]
-    return layout
+        return vertical_layout
+    elif name == 'horizontal_layout':
+        horizontal_layout = [
+            [sg.Text(text='MP3 Player', auto_size_text=True, font=("Helvetica", 19), justification='center')],
+            [
+                sg.Text(text='Search: '),
+                sg.In(size=(50, 1), justification='center', key='search', enable_events=True)
+            ],
+            [
+                sg.Column(file_list_layout, element_justification='center', vertical_alignment='center'),
+                sg.VSeparator(),
+                sg.Column(music_controls_layout, element_justification='center', vertical_alignment='center'),
+            ],
+            [sg.HSeparator()],
+            [
+                sg.Text('Description', auto_size_text=True, justification='center', text_color='black', background_color='white', enable_events=True, key='disc'),
+                sg.Button(button_text='Exit', button_color='Black'),
+                sg.Text(f'Made by {AUTHOR}', auto_size_text=True, justification='center', text_color='black', background_color='white', enable_events=True, key=AUTHOR)
+            ]
+        ]
+        return horizontal_layout
 
 def load_files(window, event, values):
     if event == '-PATH-':
@@ -235,7 +252,7 @@ def player_loop(window):
 if __name__ == '__main__':
     mixer.init()
     sg.theme('Dark')
-    layout = layouts()
+    layout = layouts('vertical_layout')
     window = sg.Window(title='Music Player V-1.0', layout=layout, location=(400, 100), element_justification='center', resizable=False, finalize=True, auto_size_buttons=True, auto_size_text=True)
     player_loop(window)
     window.close()
