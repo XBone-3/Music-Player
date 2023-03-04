@@ -1,4 +1,5 @@
-import os, random, time
+# XBone-3
+import os, random
 import PySimpleGUI as sg
 from pygame import mixer, error
 from threading import Thread, Event
@@ -12,7 +13,7 @@ file_list = '-FILE_LIST-'
 song_name = 'song name'
 start_time = 'start time'
 end_time = 'end time'
-AUTHOR = 'XBone-3'
+AUTHOR = 'M.Nagendra'
 GitHub = 'github.com/XBone-3'
 
 def list_music_files(folder_path):
@@ -23,7 +24,7 @@ def list_music_files(folder_path):
         destination = os.path.join(folder_path, item)
         if os.path.isdir(destination):
             list_music_files(destination)
-        elif item.lower().endswith(('.mp3')) and (item not in music_files):
+        elif item.lower().endswith(('.mp3', '.wav', '.ogg', '.aac')) and (item not in music_files):
             music_files.append(item)
             music_dict[item] = folder_path
             
@@ -41,6 +42,7 @@ def layouts():
                     size=(40, 20), key='-FILE_LIST-')]
     ]
     music_player_column = [
+        [sg.Text(text='MP3 Player', auto_size_text=True, font=("Helvetica", 11), justification='center')],
         [sg.Text('Choose a song from the list to play or press start to start a random song',
                  justification='center', auto_size_text=True)],
         [sg.Text('', size=(20, 1), auto_size_text=True,
@@ -86,8 +88,9 @@ def layouts():
         ],
         [sg.HSeparator()],
         [
+            sg.Text('Description', auto_size_text=True, justification='center', text_color='black', background_color='white', enable_events=True, key='disc'),
             sg.Button(button_text='Exit', button_color='Black'),
-            sg.Text('Made by XBone-3', auto_size_text=True, justification='right', text_color='black', background_color='white', enable_events=True, key=AUTHOR)
+            sg.Text(f'Made by {AUTHOR}', auto_size_text=True, justification='center', text_color='black', background_color='white', enable_events=True, key=AUTHOR)
         ]
     ]
     return layout
@@ -106,15 +109,25 @@ def search_song(window, event, values):
         new_list_music_files = [song for song in music_files if search_str.lower() in song.lower()]
         window[file_list].update(new_list_music_files)
 
+def time_formatter(time_in_seconds):
+    minutes = time_in_seconds // 60
+    seconds = time_in_seconds % 60
+    if minutes < 10:
+        minutes = f'0{minutes}'
+    if seconds < 10:
+        seconds = f'0{seconds}'
+    return minutes, seconds
+
 def song_mixer(window, song, progress_bar):
     mixer.music.load(os.path.join(music_dict[song], song))
     mixer.music.set_volume(0.5)
     mixer.music.play()
     try:
-        song_length = mixer.Sound(os.path.join(music_dict[song], song)).get_length()
+        song_length = int(mixer.Sound(os.path.join(music_dict[song], song)).get_length())
     except error:
-        song_length = MP3(os.path.join(music_dict[song], song)).info.length
-    window[end_time].update(f'{int(song_length // 60)}:{int(song_length % 60)}')
+        song_length = int(MP3(os.path.join(music_dict[song], song)).info.length)
+    minutes, seconds = time_formatter(song_length)
+    window[end_time].update(f'{minutes}:{seconds}')
     progress_bar.update(0, int(song_length))
     window[song_name].update(song)
     return music_files.index(song)
@@ -122,8 +135,9 @@ def song_mixer(window, song, progress_bar):
 def automatic_next(window, current_song_index, shuffle, repeat, progress_bar):
     if 0 <= current_song_index < len(music_files):
         song = music_files[current_song_index]
+        length_song_in_seconds = int(MP3(os.path.join(music_dict[song], song)).info.length)
         new_song_index = current_song_index
-        if (int(mixer.music.get_pos() / 1000) == int(MP3(os.path.join(music_dict[song], song)).info.length)):
+        if (int(mixer.music.get_pos() / 1000) >= length_song_in_seconds - 1):
             new_song_index = current_song_index + 1
         if not shuffle:
             if repeat and new_song_index == len(music_files):
@@ -134,7 +148,7 @@ def automatic_next(window, current_song_index, shuffle, repeat, progress_bar):
             next_song = music_files[new_song_index]
         else:
             next_song = random.choice(music_files)
-        if int(mixer.music.get_pos() / 1000) == int(MP3(os.path.join(music_dict[song], song)).info.length):
+        if int(mixer.music.get_pos() / 1000) >= length_song_in_seconds - 1:
             return song_mixer(window, next_song, progress_bar)
     return current_song_index
 
@@ -184,13 +198,16 @@ def next_previous(window, event, current_song_index, progress_bar):
 def update_time(window):
     if mixer.music.get_busy():
         current_pos = mixer.music.get_pos()
-        seconds = int(current_pos / 1000)
-        stringify_pos = f'{seconds // 60}:{seconds % 60}'
+        position_in_seconds = int(current_pos / 1000)
+        minutes, seconds = time_formatter(position_in_seconds)
+        stringify_pos = f'{minutes}:{seconds}'
         window[start_time].update(stringify_pos)
 
 def popup(event):
     if event == AUTHOR:
         sg.popup(f"Made with love by {AUTHOR}\n\nYou can follow me at {GitHub}", title="Author")
+    if event == 'disc':
+        sg.popup('explanation of each element not updated still.')
 
 def player_loop(window):
     progress_bar = window['progressbar']
@@ -199,6 +216,9 @@ def player_loop(window):
     curr_song_index = -1
     while True:
         event, values = window.read(timeout=20)
+        if event in (sg.WIN_CLOSED, 'Exit'):
+            thread_event.set()
+            break
         shuffle, repeat = values['shuffle'], values['repeat']
         load_files(window, event, values)
         search_song(window, event, values)
@@ -212,16 +232,12 @@ def player_loop(window):
         curr_song_index = next_previous(window, event, curr_song_index, progress_bar)
         curr_song_index = automatic_next(window, curr_song_index, shuffle, repeat, progress_bar)
         popup(event)
-                
-        if event in (sg.WIN_CLOSED, 'Exit'):
-            thread_event.set()
-            break
 
 
 if __name__ == '__main__':
     mixer.init()
     sg.theme('Dark')
     layout = layouts()
-    window = sg.Window(title='Music Player', layout=layout, location=(400, 100), element_justification='center', resizable=False, finalize=True, auto_size_buttons=True, auto_size_text=True)
+    window = sg.Window(title='Music Player V-1.0', layout=layout, location=(400, 100), element_justification='center', resizable=False, finalize=True, auto_size_buttons=True, auto_size_text=True)
     player_loop(window)
     window.close()
